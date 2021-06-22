@@ -3,39 +3,55 @@
 #![no_std]
 
 // Halt on panic
-use panic_halt as _; // panic handler
+use panic_halt as _;
 
-use cortex_m;
 use cortex_m_rt::entry;
 use stm32f4xx_hal as hal;
-
-use crate::hal::{prelude::*, stm32};
+use crate::hal::{prelude::*, pwm, stm32};
 
 #[entry]
 fn main() -> ! {
+
     if let (Some(dp), Some(cp)) = (
         stm32::Peripherals::take(),
         cortex_m::peripheral::Peripherals::take(),
     ) {
-        // Set up the LED. On the Nucleo-446RE it's connected to pin PA5.
-        let gpioc = dp.GPIOC.split();
-        let mut led = gpioc.pc13.into_push_pull_output();
-
-        // Set up the system clock. We want to run at 48MHz for this one.
+        // Set up the system clock.
         let rcc = dp.RCC.constrain();
-        let clocks = rcc.cfgr.sysclk(48.mhz()).freeze();
+        let clocks = rcc.cfgr.freeze();
 
-        // Create a delay abstraction based on SysTick
+        let gpioa = dp.GPIOA.split();
+        let channels = (
+            gpioa.pa8.into_alternate_af1(),
+            gpioa.pa9.into_alternate_af1(),
+        );
+
+        let pwm = pwm::tim1(dp.TIM1, channels, clocks, 20u32.khz());
+        let (mut ch1, _ch2) = pwm;
+        let max_duty = ch1.get_max_duty();
+        let mut current_duty = 800;
+        let mut increasing = false;
         let mut delay = hal::delay::Delay::new(cp.SYST, clocks);
+        ch1.enable();
 
         loop {
-            // On for 1s, off for 1s.
-            led.set_high().unwrap();
-            delay.delay_ms(500_u32);
-            led.set_low().unwrap();
-            delay.delay_ms(500_u32);
+            if increasing {
+                current_duty += 1;
+            } else {
+                current_duty -= 1;
+            }
+            if current_duty == 0 || current_duty == 800 {
+                increasing = !increasing;
+            }
+            ch1.set_duty(max_duty - current_duty);
+            delay.delay_us(750_u32);
+        }
+
+    } else {
+        loop {
+            cortex_m::asm::nop();
         }
     }
 
-    loop {}
+
 }
