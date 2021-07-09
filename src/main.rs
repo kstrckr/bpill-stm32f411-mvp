@@ -7,7 +7,9 @@ use panic_halt as _;
 
 use cortex_m_rt::entry;
 use stm32f4xx_hal as hal;
-use crate::hal::{prelude::*, pwm, stm32};
+use hal::spi::Spi;
+use hal::spi::{Mode, Phase, Polarity};
+use crate::hal::{prelude::*, stm32};
 
 #[entry]
 fn main() -> ! {
@@ -19,32 +21,37 @@ fn main() -> ! {
         // Set up the system clock.
         let rcc = dp.RCC.constrain();
         let clocks = rcc.cfgr.freeze();
-
+        let mut delay = hal::delay::Delay::new(cp.SYST, clocks);
         let gpioa = dp.GPIOA.split();
-        let channels = (
-            gpioa.pa8.into_alternate_af1(),
-            gpioa.pa9.into_alternate_af1(),
+        let (mut cs, clk, mosi) = (
+            gpioa.pa4.into_push_pull_output(),
+            gpioa.pa5.into_alternate_af5(),
+            gpioa.pa7.into_alternate_af5(),
         );
 
-        let pwm = pwm::tim1(dp.TIM1, channels, clocks, 20u32.khz());
-        let (mut ch1, _ch2) = pwm;
-        let max_duty = ch1.get_max_duty();
-        let mut current_duty = 800;
-        let mut increasing = false;
-        let mut delay = hal::delay::Delay::new(cp.SYST, clocks);
-        ch1.enable();
+        let gpiob = dp.GPIOB.split();
+        let miso = gpiob.pb4.into_alternate_af5();
 
+        let mut spi = Spi::spi1(
+            dp.SPI1,
+            (clk, miso, mosi),
+            Mode {
+                polarity: Polarity::IdleLow,
+                phase: Phase::CaptureOnFirstTransition,
+            },
+            hal::time::KiloHertz(2000).into(),
+            clocks
+        );
+
+        // CS HIGH = Standby mode
+        cs.set_high();
+        delay.delay_ms(100_u32);
+        cs.set_low();
+
+        let mfgId = spi.transfer(&mut [0x9F]);
+        cs.set_high();
         loop {
-            if increasing {
-                current_duty += 1;
-            } else {
-                current_duty -= 1;
-            }
-            if current_duty == 0 || current_duty == 800 {
-                increasing = !increasing;
-            }
-            ch1.set_duty(max_duty - current_duty);
-            delay.delay_us(750_u32);
+            continue;
         }
 
     } else {
