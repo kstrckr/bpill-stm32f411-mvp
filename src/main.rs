@@ -20,31 +20,16 @@ fn main() -> ! {
         let rcc = dp.RCC.constrain();
         let clocks = rcc.cfgr.freeze();
 
-        let gpioa = dp.GPIOA.split();
-        let channels = (
-            gpioa.pa8.into_alternate_af1(),
-            gpioa.pa9.into_alternate_af1(),
-        );
+        let gpiob = dp.GPIOB.split();
 
-        let pwm = pwm::tim1(dp.TIM1, channels, clocks, 20u32.khz());
-        let (mut ch1, _ch2) = pwm;
-        let max_duty = ch1.get_max_duty();
-        let mut current_duty = 800;
-        let mut increasing = false;
-        let mut delay = hal::delay::Delay::new(cp.SYST, clocks);
-        ch1.enable();
+        let mut segSel0 = gpiob.pb6.into_push_pull_output();
+        segSel0.set_high();
+
+        let mut charSel3 = gpiob.pb12.into_push_pull_output();
+        charSel3.set_low();
 
         loop {
-            if increasing {
-                current_duty += 1;
-            } else {
-                current_duty -= 1;
-            }
-            if current_duty == 0 || current_duty == 800 {
-                increasing = !increasing;
-            }
-            ch1.set_duty(max_duty - current_duty);
-            delay.delay_us(750_u32);
+            continue;
         }
 
     } else {
