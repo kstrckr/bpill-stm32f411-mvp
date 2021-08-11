@@ -12,6 +12,7 @@ cortex-m = "0.6"
 cortex-m-rt = "0.6"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2"
+stsafe-rs = { version = "0.1.0", path = "../rust_libs/stsafe-rs" }
 
 [dependencies.stm32f4xx-hal]
 version = "0.8"
