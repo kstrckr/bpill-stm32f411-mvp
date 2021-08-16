@@ -15,5 +15,5 @@ panic-halt = "0.2"
 stsafe-rs = { version = "0.1.0", path = "../rust_libs/stsafe-rs" }
 
 [dependencies.stm32f4xx-hal]
-version = "0.8"
+version = "0.9"
 features = ["rt", "stm32f411"] # replace the model of your microcontroller here
